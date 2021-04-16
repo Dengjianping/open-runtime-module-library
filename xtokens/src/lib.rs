@@ -76,7 +76,7 @@ pub mod module {
 		type SelfLocation: Get<MultiLocation>;
 
 		/// Xcm handler to execute XCM.
-		type XcmHandler: XcmHandler<Self::AccountId>;
+		type XcmHandler: XcmHandler<Self::AccountId, Self::Call>;
 	}
 
 	#[pallet::event]
@@ -181,24 +181,24 @@ pub mod module {
 			Ok(().into())
 		}
 
-		fn transfer_self_reserve_asset(asset: MultiAsset, dest: MultiLocation, recipient: MultiLocation) -> Xcm {
+		fn transfer_self_reserve_asset(asset: MultiAsset, dest: MultiLocation, recipient: MultiLocation) -> Xcm<T::Call> {
 			WithdrawAsset {
 				assets: vec![asset],
 				effects: vec![DepositReserveAsset {
 					assets: vec![MultiAsset::All],
 					dest,
-					effects: Self::deposit_asset(recipient),
+					effects: Self::deposit_asset(recipient).into_iter().map(Order::into).collect(),
 				}],
 			}
 		}
 
-		fn transfer_to_reserve(asset: MultiAsset, reserve: MultiLocation, recipient: MultiLocation) -> Xcm {
+		fn transfer_to_reserve(asset: MultiAsset, reserve: MultiLocation, recipient: MultiLocation) -> Xcm<T::Call> {
 			WithdrawAsset {
 				assets: vec![asset],
 				effects: vec![InitiateReserveWithdraw {
 					assets: vec![MultiAsset::All],
 					reserve,
-					effects: Self::deposit_asset(recipient),
+					effects: Self::deposit_asset(recipient).into_iter().map(Order::into).collect(),
 				}],
 			}
 		}
@@ -208,7 +208,7 @@ pub mod module {
 			reserve: MultiLocation,
 			dest: MultiLocation,
 			recipient: MultiLocation,
-		) -> Xcm {
+		) -> Xcm<T::Call> {
 			let mut reanchored_dest = dest.clone();
 			if reserve == Parent.into() {
 				if let MultiLocation::X2(Parent, Parachain { id }) = dest {
@@ -224,13 +224,13 @@ pub mod module {
 					effects: vec![DepositReserveAsset {
 						assets: vec![MultiAsset::All],
 						dest: reanchored_dest,
-						effects: Self::deposit_asset(recipient),
+						effects: Self::deposit_asset(recipient).into_iter().map(Order::into).collect(),
 					}],
 				}],
 			}
 		}
 
-		fn deposit_asset(recipient: MultiLocation) -> Vec<Order> {
+		fn deposit_asset(recipient: MultiLocation) -> Vec<Order<T::Call>> {
 			vec![DepositAsset {
 				assets: vec![MultiAsset::All],
 				dest: recipient,
